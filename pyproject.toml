@@ -1,7 +1,7 @@
 [project]
 name = "wandb-tui"
 version = "0.1.0"
-description = "Add your description here"
+description = "WandB TUI tool"
 readme = "README.md"
 authors = [
     { name = "ikura-hamu", email = "104292023+ikura-hamu@users.noreply.github.com" }
@@ -22,6 +22,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "ruff>=0.11.11",
+    "rust-just>=1.40.0",
     "textual-dev>=1.7.0",
-    "ty>=0.0.1a7",
+    "ty>=0.0.1a9",
 ]

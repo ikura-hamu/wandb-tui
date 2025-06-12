@@ -39,7 +39,9 @@ class WandbTUI(App):
             # 1ページ目: 最初の50件を取得
             self.call_from_thread(self.notify, "Loading Runs ...")
 
-            runs_iterator = self.api.runs(project_name, per_page=per_page_count, order="-created_at")
+            runs_iterator = self.api.runs(
+                project_name, per_page=per_page_count, order="-created_at"
+            )
 
             # 1ページ目のデータを段階的に追加
             count = 0
@@ -65,9 +67,7 @@ class WandbTUI(App):
                     page_number += 1
 
             # 1ページ目のローディング完了を通知
-            self.call_from_thread(
-                self.notify, f"Loaded {total_count} runs."
-            )
+            self.call_from_thread(self.notify, f"Loaded {total_count} runs.")
 
         except Exception as e:
             # エラーハンドリング
