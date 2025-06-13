@@ -1,8 +1,8 @@
-from .app import WandbTUI
+from run.app import RunApp
 
 
 def main() -> None:
-    app = WandbTUI()
+    app = RunApp()
     app.run()
 
 

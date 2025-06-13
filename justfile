@@ -8,3 +8,6 @@ format:
 
 type:
     @ty check .
+
+dev:
+    @textual run --dev --command wandb-tui
