@@ -4,14 +4,9 @@ from textual.app import App
 
 from .controllers import RunsController
 from .models import WandbApiDataSource, WandbRunsModel
-from .views import MainView
 
 
 class RunApp(App):
-    BINDINGS = [
-        ("f", "toggle_filter", "Toggle finished runs"),
-    ]
-
     def __init__(
         self, driver_class=None, css_path=None, watch_css=False, ansi_color=False
     ):
@@ -21,18 +16,17 @@ class RunApp(App):
         wandb.login()
         self.data_source: WandbApiDataSource = WandbApiDataSource()
         self.model: WandbRunsModel = WandbRunsModel(self.data_source)
-        self.main_view: MainView = MainView()
         self.controller: RunsController | None = None  # マウント後に初期化
         self.worker: worker.Worker | None = None  # ワーカースレッドの初期化
 
     def compose(self):
         """UIコンポーネントを構成"""
-        yield self.main_view
+        yield RunsController(self.model)
 
     def on_mount(self):
         """アプリケーション起動時の処理"""
         # ビューがマウントされた後にコントローラーを初期化
-        self.controller = RunsController(self.model, self.main_view, self)
+        self.controller = self.query_one(RunsController)
         # データ取得を開始
         self.worker = self.fetch_wandb_data()
 
@@ -56,8 +50,3 @@ class RunApp(App):
         """アプリケーション終了時のクリーンアップ"""
         if self.controller:
             self.controller.cleanup()
-
-    def action_toggle_filter(self) -> None:
-        """フィルターを切り替え"""
-        if self.controller:
-            self.controller.toggle_filter()

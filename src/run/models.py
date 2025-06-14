@@ -109,9 +109,12 @@ class WandbApiDataSource(WandbDataSource):
 class Filter:
     """実行データのフィルター"""
 
+    key: str
+    value: str
+
     def matches(self, run_data: RunData) -> bool:
         """フィルター条件に一致するかチェック"""
-        return run_data.state == "finished"
+        return run_data.__dict__.get(self.key) == self.value
 
 
 class WandbRunsModel:
@@ -138,16 +141,20 @@ class WandbRunsModel:
             method = getattr(observer, method_name)
             method(*args, **kwargs)
 
-    def set_filter(self, filter: Filter) -> None:
-        """フィルターを設定"""
-        self._filter = filter
-        self.notify_filter_changed()
-
     def toggle_filter(self) -> None:
         """完了済み実行のフィルターを切り替え"""
         if self._filter is None:
-            self._filter = Filter()
+            self._filter = Filter(key="state", value="finished")
         else:
+            self._filter = None
+        self.notify_filter_changed()
+
+    def edit_filter(self, filter_text: str) -> None:
+        """フィルターを編集"""
+        try:
+            key, value = filter_text.split("=", 1)
+            self._filter = Filter(key=key.strip(), value=value.strip())
+        except ValueError:
             self._filter = None
         self.notify_filter_changed()
 
