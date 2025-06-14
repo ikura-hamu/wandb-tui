@@ -19,6 +19,9 @@ class DataObserverImpl(DataObserver):
     def on_data_loading_started(self) -> None:
         """データ読み込み開始時の処理"""
         self.controller.app.call_from_thread(self.controller._show_loading_and_clear)
+        self.controller.app.call_from_thread(
+            self.controller.view.table_status_bar.update_status, "🌀 Loading runs..."
+        )
 
     def on_data_loaded(self, run_data: RunData) -> None:
         """新しいデータが読み込まれた時の処理"""
@@ -34,6 +37,9 @@ class DataObserverImpl(DataObserver):
     def on_data_loading_completed(self, total_count: int) -> None:
         """データ読み込み完了時の処理"""
         self.controller.app.call_from_thread(self.controller._hide_loading)
+        self.controller.app.call_from_thread(
+            self.controller.view.table_status_bar.update_status, "✅ Loading completed"
+        )
 
     def on_data_loading_failed(self, error: Exception) -> None:
         """データ読み込み失敗時の処理"""

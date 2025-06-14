@@ -7,6 +7,8 @@ from .models import WandbApiDataSource, WandbRunsModel
 
 
 class RunApp(App):
+    CSS_PATH = "../styles/run.tcss"
+
     def __init__(
         self, driver_class=None, css_path=None, watch_css=False, ansi_color=False
     ):

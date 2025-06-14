@@ -2,7 +2,14 @@
 
 from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
-from textual.widgets import DataTable, Footer, Header, LoadingIndicator, TextArea
+from textual.widgets import (
+    DataTable,
+    Footer,
+    Header,
+    LoadingIndicator,
+    Static,
+    TextArea,
+)
 
 
 class RunsTableView(DataTable):
@@ -41,6 +48,18 @@ class FilterEditor(TextArea):
         super().__init__(**kwargs)
 
 
+class StatusBar(Static):
+    """ステータスバー"""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(content="status bar", **kwargs)
+
+    def update_status(self, message: str) -> None:
+        """ステータスメッセージを更新"""
+        self.update(message)
+        self.refresh()
+
+
 class MainView(Widget):
     """メインビューコンテナ"""
 
@@ -49,9 +68,13 @@ class MainView(Widget):
         yield Header()
         with Horizontal():
             with Vertical(id="left-panel"):
-                yield RunsTableView(id="runs-table")
-                yield LoadingView(id="loading")
-            yield FilterEditor(id="filter-editor")
+                with Vertical():
+                    yield RunsTableView(id="runs-table")
+                    yield LoadingView(id="loading")
+                yield StatusBar(id="left-status-bar")
+            with Vertical(id="right-panel"):
+                yield FilterEditor(id="filter-editor")
+                yield StatusBar(id="right-status-bar")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -72,3 +95,13 @@ class MainView(Widget):
     def filter_editor(self) -> FilterEditor:
         """フィルターエディタを取得"""
         return self.query_one("#filter-editor", FilterEditor)
+
+    @property
+    def table_status_bar(self) -> StatusBar:
+        """テーブルのステータスバーを取得"""
+        return self.query_one("#left-status-bar", StatusBar)
+
+    @property
+    def editor_status_bar(self) -> StatusBar:
+        """フィルターエディタのステータスバーを取得"""
+        return self.query_one("#right-status-bar", StatusBar)

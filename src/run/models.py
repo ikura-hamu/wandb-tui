@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from ast import literal_eval
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
 import wandb.apis.public.runs
-from ast import literal_eval
+
 
 @dataclass
 class RunData:
@@ -117,7 +118,7 @@ class Filter:
         try:
             return run_data.__dict__.get(self.key) == literal_eval(self.value)
         except (ValueError, SyntaxError):
-            return False
+            return True  # フィルターが無効な場合は通す
 
 
 class WandbRunsModel:
