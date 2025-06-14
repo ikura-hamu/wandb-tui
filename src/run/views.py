@@ -21,7 +21,7 @@ class RunsTableView(DataTable):
 
     def add_run_row(self, run_id: str, name: str, state: str, created_at: str) -> None:
         """テーブルに実行データの行を追加"""
-        self.add_row(run_id, name, state, created_at)
+        self.add_row(run_id, name, state, created_at, key=run_id)
 
     def clear_table(self) -> None:
         """テーブルをクリア"""

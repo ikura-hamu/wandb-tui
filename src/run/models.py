@@ -145,14 +145,6 @@ class WandbRunsModel:
             method = getattr(observer, method_name)
             method(*args, **kwargs)
 
-    def toggle_filter(self) -> None:
-        """完了済み実行のフィルターを切り替え"""
-        if self._filter is None:
-            self._filter = Filter(key="state", value="finished")
-        else:
-            self._filter = None
-        self.notify_filter_changed()
-
     def edit_filter(self, filter_text: str) -> None:
         """フィルターを編集"""
         try:

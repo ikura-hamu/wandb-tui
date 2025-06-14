@@ -65,10 +65,6 @@ class DataObserverImpl(DataObserver):
 class RunsController(Widget):
     """WandB実行データの表示を制御するコントローラー"""
 
-    BINDINGS = [
-        ("f", "toggle_filter", "Toggle finished runs"),
-    ]
-
     def __init__(self, model: WandbRunsModel, **kwargs) -> None:
         super().__init__(**kwargs)
         self.model = model
@@ -116,10 +112,6 @@ class RunsController(Widget):
     def cleanup(self) -> None:
         """クリーンアップ処理"""
         self.model.remove_observer(self)
-
-    def action_toggle_filter(self) -> None:
-        """フィルターを切り替え"""
-        self.model.toggle_filter()
 
     @on(FilterEditor.Changed)
     def on_filter_editor_changed(self, event: FilterEditor.Changed) -> None:
