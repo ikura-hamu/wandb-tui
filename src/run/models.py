@@ -49,6 +49,10 @@ class DataObserver(Protocol):
         """データ読み込み失敗時に呼ばれる"""
         ...
 
+    def on_filter_changed(self, filtered_runs: list[RunData]) -> None:
+        """フィルターが変更された時に呼ばれる"""
+        ...
+
 
 class WandbDataSource(ABC):
     """WandBデータソースの抽象基底クラス"""
@@ -57,7 +61,7 @@ class WandbDataSource(ABC):
     def fetch_runs(
         self,
         project_name: str,
-        per_page: int = 30,
+        per_page: int,
         observer: DataObserver | None = None,
     ) -> None:
         """実行データを取得する"""
@@ -73,12 +77,12 @@ class WandbApiDataSource(WandbDataSource):
     def fetch_runs(
         self,
         project_name: str,
-        per_page: int = 30,
-        observer: DataObserver | None = None,
+        per_page: int,
+        observer: WandbRunsModel | None = None,
     ) -> None:
         """WandB APIから実行データを取得"""
         if observer:
-            observer.on_data_loading_started()
+            observer.notify_data_loading_started()
 
         try:
             runs_iterator = self.api.runs(
@@ -89,16 +93,25 @@ class WandbApiDataSource(WandbDataSource):
             for run in runs_iterator:
                 run_data = RunData.from_wandb_run(run)
                 if observer:
-                    observer.on_data_loaded(run_data)
+                    observer.notify_data_loaded(run_data)
                 count += 1
 
             if observer:
-                observer.on_data_loading_completed(count)
+                observer.notify_data_loading_completed(count)
 
         except Exception as e:
             if observer:
-                observer.on_data_loading_failed(e)
+                observer.notify_data_loading_failed(e)
             raise
+
+
+@dataclass
+class Filter:
+    """実行データのフィルター"""
+
+    def matches(self, run_data: RunData) -> bool:
+        """フィルター条件に一致するかチェック"""
+        return run_data.state == "finished"
 
 
 class WandbRunsModel:
@@ -108,6 +121,7 @@ class WandbRunsModel:
         self.data_source = data_source
         self.runs: list[RunData] = []
         self._observers: list[DataObserver] = []
+        self._filter: Filter | None = None
 
     def add_observer(self, observer: DataObserver) -> None:
         """オブザーバーを追加"""
@@ -124,35 +138,60 @@ class WandbRunsModel:
             method = getattr(observer, method_name)
             method(*args, **kwargs)
 
-    # DataObserver実装
-    def on_data_loading_started(self) -> None:
+    def set_filter(self, filter: Filter) -> None:
+        """フィルターを設定"""
+        self._filter = filter
+        self.notify_filter_changed()
+
+    def toggle_filter(self) -> None:
+        """完了済み実行のフィルターを切り替え"""
+        if self._filter is None:
+            self._filter = Filter()
+        else:
+            self._filter = None
+        self.notify_filter_changed()
+
+    def get_filtered_runs(self) -> list[RunData]:
+        """フィルターに基づいて実行データを取得"""
+        if self._filter is None:
+            return self.runs.copy()
+        return [run for run in self.runs if self._filter.matches(run)]
+
+    def filter_run(self, run_data: RunData) -> bool:
+        """実行データがフィルターに一致するかチェック"""
+        if self._filter is None:
+            return True
+        return self._filter.matches(run_data)
+
+    def notify_data_loading_started(self) -> None:
         """データ読み込み開始時の処理"""
         for obs in self._observers:
             obs.on_data_loading_started()
 
-    def on_data_loaded(self, run_data: RunData) -> None:
+    def notify_data_loaded(self, run_data: RunData) -> None:
         """新しいデータが読み込まれた時の処理"""
         self.runs.append(run_data)
         for obs in self._observers:
             obs.on_data_loaded(run_data)
 
-    def on_data_loading_completed(self, total_count: int) -> None:
+    def notify_data_loading_completed(self, total_count: int) -> None:
         """データ読み込み完了時の処理"""
         for obs in self._observers:
             obs.on_data_loading_completed(total_count)
 
-    def on_data_loading_failed(self, error: Exception) -> None:
+    def notify_data_loading_failed(self, error: Exception) -> None:
         """データ読み込み失敗時の処理"""
         for obs in self._observers:
             obs.on_data_loading_failed(error)
 
-    def load_runs(self, project_name: str, per_page: int = 30) -> None:
+    def notify_filter_changed(self) -> None:
+        """フィルターが変更された時の処理"""
+        for obs in self._observers:
+            obs.on_filter_changed(self.get_filtered_runs())
+
+    def load_runs(self, project_name: str, per_page: int = 50) -> None:
         """実行データを読み込む"""
         self.data_source.fetch_runs(project_name, per_page, self)
-
-    def get_runs(self) -> list[RunData]:
-        """全実行データを取得"""
-        return self.runs.copy()
 
     def clear_runs(self) -> None:
         """実行データをクリア"""

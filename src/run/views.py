@@ -9,7 +9,7 @@ class RunsTableView(DataTable):
     """WandB実行データを表示するテーブルビュー"""
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(id="runs-table", **kwargs)
+        super().__init__(**kwargs)
         self.add_columns("ID", "Name", "State", "Created At")
 
     def add_run_row(self, run_id: str, name: str, state: str, created_at: str) -> None:
@@ -19,14 +19,13 @@ class RunsTableView(DataTable):
     def clear_table(self) -> None:
         """テーブルをクリア"""
         self.clear()
-        self.add_columns("ID", "Name", "State", "Created At")
 
 
 class LoadingView(LoadingIndicator):
     """ローディング表示のビュー"""
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(id="loading", **kwargs)
+        super().__init__(**kwargs)
 
     def show_loading(self) -> None:
         """ローディングを表示"""
@@ -44,8 +43,8 @@ class MainView(Widget):
         """ビューを構成"""
         yield Header()
         with Vertical():
-            yield RunsTableView()
-            yield LoadingView()
+            yield RunsTableView(id="runs-table")
+            yield LoadingView(id="loading")
         yield Footer()
 
     def get_runs_table(self) -> RunsTableView:
