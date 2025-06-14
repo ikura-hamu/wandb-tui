@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Protocol
 
 import wandb.apis.public.runs
-
+from ast import literal_eval
 
 @dataclass
 class RunData:
@@ -114,7 +114,10 @@ class Filter:
 
     def matches(self, run_data: RunData) -> bool:
         """フィルター条件に一致するかチェック"""
-        return run_data.__dict__.get(self.key) == self.value
+        try:
+            return run_data.__dict__.get(self.key) == literal_eval(self.value)
+        except (ValueError, SyntaxError):
+            return False
 
 
 class WandbRunsModel:

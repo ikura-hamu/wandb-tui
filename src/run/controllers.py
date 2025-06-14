@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from textual import on
 from textual.widget import Widget
 
-from run.views import LoadingView, MainView, RunsTableView
+from run.views import FilterEditor, LoadingView, MainView, RunsTableView
 
 from .models import DataObserver, RunData, WandbRunsModel
 
@@ -113,3 +114,8 @@ class RunsController(Widget):
     def action_toggle_filter(self) -> None:
         """フィルターを切り替え"""
         self.model.toggle_filter()
+
+    @on(FilterEditor.Changed)
+    def on_filter_editor_changed(self, event: FilterEditor.Changed) -> None:
+        """フィルターエディタの変更イベントハンドラ"""
+        self.model.edit_filter(event.text_area.text)

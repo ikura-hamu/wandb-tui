@@ -10,7 +10,7 @@ class RunsTableView(DataTable):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.add_columns("ID", "Name", "State", "Created At")
+        self.add_columns("id", "name", "state", "created_at")
 
     def add_run_row(self, run_id: str, name: str, state: str, created_at: str) -> None:
         """テーブルに実行データの行を追加"""
