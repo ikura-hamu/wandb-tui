@@ -94,10 +94,6 @@ class RunsController(Widget):
         self.runs_table = self.view.get_runs_table
         self.loading_view = self.view.get_loading_view
 
-    def toggle_filter(self) -> None:
-        """フィルターを切り替える"""
-        self.model.toggle_filter()
-
     def _show_loading_and_clear(self) -> None:
         """ローディング表示とテーブルクリア（UIスレッド用）"""
         self.loading_view.show_loading()
