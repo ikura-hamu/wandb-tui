@@ -19,6 +19,7 @@ class RunData:
     name: str
     state: str
     created_at: datetime
+    url: str
 
     @classmethod
     def from_wandb_run(cls, run: wandb.apis.public.runs.Run) -> RunData:
@@ -28,6 +29,7 @@ class RunData:
             name=run.name,
             state=run.state,
             created_at=run.created_at,
+            url=run.url,
         )
 
 
@@ -165,6 +167,13 @@ class WandbRunsModel:
         if self._filter is None:
             return True
         return self._filter.matches(run_data)
+
+    def find_run_by_id(self, run_id: str) -> RunData | None:
+        """IDで実行データを検索"""
+        for run in self.runs:
+            if run.id == run_id:
+                return run
+        return None
 
     def notify_data_loading_started(self) -> None:
         """データ読み込み開始時の処理"""

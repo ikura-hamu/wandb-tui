@@ -117,3 +117,15 @@ class RunsController(Widget):
     def on_filter_editor_changed(self, event: FilterEditor.Changed) -> None:
         """フィルターエディタの変更イベントハンドラ"""
         self.model.edit_filter(event.text_area.text)
+
+    @on(RunsTableView.ReqCopyUrl)
+    def on_req_copy_url(self, event: RunsTableView.ReqCopyUrl) -> None:
+        """URLコピー要求イベントハンドラ"""
+        run_id = event.run_id
+        run_data = self.model.find_run_by_id(run_id)
+        if run_data:
+            self.app.copy_to_clipboard(run_data.url)
+            self.app.notify(f"Copied URL for run {run_id} to clipboard.")
+        else:
+            self.app.notify(f"Run {run_id} not found.", severity="error")
+

@@ -1,6 +1,7 @@
 """Views for WandB TUI application."""
 
 from textual.containers import Horizontal, Vertical
+from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import (
     DataTable,
@@ -15,8 +16,19 @@ from textual.widgets import (
 class RunsTableView(DataTable):
     """WandB実行データを表示するテーブルビュー"""
 
+    BINDINGS = [
+        ("c", "copy_url", "Copy run URL"),
+    ]
+
+    class ReqCopyUrl(Message):
+        """URLコピーのメッセージ"""
+
+        def __init__(self, run_id: str) -> None:
+            super().__init__()
+            self.run_id = run_id
+
     def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__(cursor_type="row", **kwargs)
         self.add_columns("id", "name", "state", "created_at")
 
     def add_run_row(self, run_id: str, name: str, state: str, created_at: str) -> None:
@@ -26,6 +38,10 @@ class RunsTableView(DataTable):
     def clear_table(self) -> None:
         """テーブルをクリア"""
         self.clear()
+
+    def action_copy_url(self):
+        run_id = self.get_row_at(self.cursor_row)[0]
+        self.post_message(self.ReqCopyUrl(run_id))
 
 
 class LoadingView(LoadingIndicator):
