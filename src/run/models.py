@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 import wandb.apis.public.runs
 
-from .filter import Filter
+from .filter import Filter, FilterError
 
 
 @dataclass
@@ -21,9 +22,13 @@ class RunData:
     state: str
     created_at: datetime
     url: str
+    config: dict[str, Any]
 
     @classmethod
     def from_wandb_run(cls, run: wandb.apis.public.runs.Run) -> RunData:
+        raw_config: dict[str, Any] = json.loads(run.json_config)
+        config = {k: v["value"] for k, v in raw_config.items()}
+
         """WandB RunオブジェクトからRunDataを作成"""
         return cls(
             id=run.id,
@@ -31,6 +36,7 @@ class RunData:
             state=run.state,
             created_at=run.created_at,
             url=run.url,
+            config=config,
         )
 
     def dict(self):
@@ -56,7 +62,9 @@ class DataObserver(Protocol):
         """データ読み込み失敗時に呼ばれる"""
         ...
 
-    def on_filter_changed(self, filtered_runs: list[RunData]) -> None:
+    def on_filter_changed(
+        self, filtered_runs: list[RunData], error: Exception | None
+    ) -> None:
         """フィルターが変更された時に呼ばれる"""
         ...
 
@@ -138,8 +146,13 @@ class WandbRunsModel:
 
     def edit_filter(self, filter_text: str) -> None:
         """フィルターを編集"""
-        self._filter.update_query(filter_text)
-        self.notify_filter_changed()
+        try:
+            self._filter.update_query(filter_text)
+        except FilterError as e:
+            self.notify_filter_changed(e)
+            return
+
+        self.notify_filter_changed(None)
 
     def get_filtered_runs(self) -> list[RunData]:
         """フィルターに基づいて実行データを取得"""
@@ -179,10 +192,10 @@ class WandbRunsModel:
         for obs in self._observers:
             obs.on_data_loading_failed(error)
 
-    def notify_filter_changed(self) -> None:
+    def notify_filter_changed(self, error: Exception | None) -> None:
         """フィルターが変更された時の処理"""
         for obs in self._observers:
-            obs.on_filter_changed(self.get_filtered_runs())
+            obs.on_filter_changed(self.get_filtered_runs(), error=error)
 
     def load_runs(self, project_name: str, per_page: int = 50) -> None:
         """実行データを読み込む"""

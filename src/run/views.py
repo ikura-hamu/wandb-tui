@@ -68,10 +68,12 @@ class StatusBar(Static):
     """ステータスバー"""
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(content="status bar", **kwargs)
+        super().__init__(**kwargs)
 
-    def update_status(self, message: str) -> None:
+    def update_status(self, message: str | None = None) -> None:
         """ステータスメッセージを更新"""
+        if message is None:
+            message = ""
         self.update(message)
         self.refresh()
 
@@ -90,7 +92,7 @@ class MainView(Widget):
                 yield StatusBar(id="left-status-bar")
             with Vertical(id="right-panel"):
                 yield FilterEditor(id="filter-editor")
-                yield StatusBar(id="right-status-bar")
+                yield StatusBar(id="right-status-bar", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:

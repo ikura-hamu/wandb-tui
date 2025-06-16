@@ -50,8 +50,13 @@ class DataObserverImpl(DataObserver):
             severity="error",
         )
 
-    def on_filter_changed(self, filtered_runs: list[RunData]) -> None:
+    def on_filter_changed(
+        self, filtered_runs: list[RunData], error: Exception | None
+    ) -> None:
         """フィルターが変更された時の処理"""
+        if error:
+            self.controller.view.editor_status_bar.update_status(str(error))
+            return
         self.controller.runs_table.clear_table()
         for run in filtered_runs:
             self.controller._add_run_row(
@@ -60,6 +65,7 @@ class DataObserverImpl(DataObserver):
                 run.state,
                 str(run.created_at),
             )
+        self.controller.view.editor_status_bar.update_status()
 
 
 class RunsController(Widget):
@@ -128,4 +134,3 @@ class RunsController(Widget):
             self.app.notify(f"Copied URL for run {run_id} to clipboard.")
         else:
             self.app.notify(f"Run {run_id} not found.", severity="error")
-
