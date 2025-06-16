@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from ast import literal_eval
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
 import wandb.apis.public.runs
+
+from .filter import Filter
 
 
 @dataclass
@@ -31,6 +32,9 @@ class RunData:
             created_at=run.created_at,
             url=run.url,
         )
+
+    def dict(self):
+        return self.__dict__
 
 
 class DataObserver(Protocol):
@@ -108,29 +112,14 @@ class WandbApiDataSource(WandbDataSource):
             raise
 
 
-@dataclass
-class Filter:
-    """実行データのフィルター"""
-
-    key: str
-    value: str
-
-    def matches(self, run_data: RunData) -> bool:
-        """フィルター条件に一致するかチェック"""
-        try:
-            return run_data.__dict__.get(self.key) == literal_eval(self.value)
-        except (ValueError, SyntaxError):
-            return True  # フィルターが無効な場合は通す
-
-
 class WandbRunsModel:
     """WandB実行データを管理するモデル"""
 
-    def __init__(self, data_source: WandbDataSource) -> None:
+    def __init__(self, data_source: WandbDataSource, filter_text: str) -> None:
         self.data_source = data_source
         self.runs: list[RunData] = []
         self._observers: list[DataObserver] = []
-        self._filter: Filter | None = None
+        self._filter: Filter = Filter(filter_text)
 
     def add_observer(self, observer: DataObserver) -> None:
         """オブザーバーを追加"""
@@ -149,24 +138,18 @@ class WandbRunsModel:
 
     def edit_filter(self, filter_text: str) -> None:
         """フィルターを編集"""
-        try:
-            key, value = filter_text.split("=", 1)
-            self._filter = Filter(key=key.strip(), value=value.strip())
-        except ValueError:
-            self._filter = None
+        self._filter.update_query(filter_text)
         self.notify_filter_changed()
 
     def get_filtered_runs(self) -> list[RunData]:
         """フィルターに基づいて実行データを取得"""
-        if self._filter is None:
-            return self.runs.copy()
-        return [run for run in self.runs if self._filter.matches(run)]
+        return [run for run in self.runs if self._filter.matches(run.dict())]
 
     def filter_run(self, run_data: RunData) -> bool:
         """実行データがフィルターに一致するかチェック"""
         if self._filter is None:
             return True
-        return self._filter.matches(run_data)
+        return self._filter.matches(run_data.dict())
 
     def find_run_by_id(self, run_id: str) -> RunData | None:
         """IDで実行データを検索"""

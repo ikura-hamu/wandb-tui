@@ -17,7 +17,7 @@ class RunApp(App):
         # 依存関係の初期化
         wandb.login()
         self.data_source: WandbApiDataSource = WandbApiDataSource()
-        self.model: WandbRunsModel = WandbRunsModel(self.data_source)
+        self.model: WandbRunsModel = WandbRunsModel(self.data_source, "")
         self.controller: RunsController | None = None  # マウント後に初期化
         self.worker: worker.Worker | None = None  # ワーカースレッドの初期化
 
