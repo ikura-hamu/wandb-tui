@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - directory: /
+    open-pull-requests-limit: 5
+    rebase-strategy: auto
+    package-ecosystem: "uv"
+    schedule:
+      interval: "weekly"
+      day: saturday
+      timezone: "Asia/Tokyo"
+      time: "00:00"
