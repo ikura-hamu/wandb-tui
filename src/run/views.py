@@ -8,8 +8,10 @@ from textual.widgets import (
     Footer,
     Header,
     LoadingIndicator,
+    Pretty,
     Static,
     TextArea,
+    Tree,
 )
 
 
@@ -78,6 +80,58 @@ class StatusBar(Static):
         self.refresh()
 
 
+class RunView(Widget):
+    BINDINGS = [
+        ("q", "hide", "Hide run view"),
+    ]
+
+    def __init__(
+        self,
+        *children,
+        name=None,
+        id=None,
+        classes=None,
+        disabled=False,
+        markup=True,
+    ):
+        super().__init__(
+            *children,
+            name=name,
+            id=id,
+            classes=classes,
+            disabled=disabled,
+            markup=markup,
+        )
+        self.display = False
+        self.content: Pretty | None = None
+        self.obj_tree: Tree | None = None
+
+    def compose(self):
+        # with VerticalScroll():
+        yield Tree(label="Run")
+
+    def on_mount(self) -> None:
+        self.obj_tree = self.query_one(Tree)
+
+    def show(self, obj: object | None = None):
+        self.display = True
+
+        if obj is not None:
+            self.obj_tree.focus()
+            self.obj_tree.clear()
+            self.obj_tree.add_json(obj)
+            root_node = self.obj_tree.root.expand()
+            for child in root_node.children:
+                child.expand()
+
+    def _hide(self):
+        self.display = False
+
+    def action_hide(self):
+        """Hide the run view when 'q' is pressed."""
+        self._hide()
+
+
 class MainView(Widget):
     """メインビューコンテナ"""
 
@@ -85,11 +139,12 @@ class MainView(Widget):
         """ビューを構成"""
         yield Header()
         with Horizontal():
-            with Vertical(id="left-panel"):
-                with Vertical():
+            with Horizontal(id="left-panel"):
+                with Vertical(id="table-section"):
                     yield RunsTableView(id="runs-table")
                     yield LoadingView(id="loading")
-                yield StatusBar(id="left-status-bar")
+                    yield StatusBar(id="left-status-bar")
+                yield RunView(id="run-view")
             with Vertical(id="right-panel"):
                 yield FilterEditor(id="filter-editor")
                 yield StatusBar(id="right-status-bar", markup=False)
@@ -97,7 +152,9 @@ class MainView(Widget):
 
     def on_mount(self) -> None:
         """マウント時の初期化処理"""
-        self.query_one("#left-panel", Vertical).styles.width = "70%"
+        # 初期状態でRunViewを非表示にする
+        run_view = self.query_one("#run-view", RunView)
+        run_view.display = False
 
     @property
     def get_runs_table(self) -> RunsTableView:
@@ -123,3 +180,8 @@ class MainView(Widget):
     def editor_status_bar(self) -> StatusBar:
         """フィルターエディタのステータスバーを取得"""
         return self.query_one("#right-status-bar", StatusBar)
+
+    @property
+    def run_view(self) -> RunView:
+        """実行ビューを取得"""
+        return self.query_one("#run-view", RunView)
