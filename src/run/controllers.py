@@ -131,6 +131,17 @@ class RunsController(Widget):
         else:
             self.app.notify(f"Run {run_id} not found.", severity="error")
 
+    @on(RunsTableView.ReqCopyPath)
+    def on_req_copy_path(self, event: RunsTableView.ReqCopyPath) -> None:
+        """パスコピー要求イベントハンドラ"""
+        run_id = event.run_id
+        run_data = self.model.find_run_by_id(run_id)
+        if run_data:
+            self.app.copy_to_clipboard(run_data.path)
+            self.app.notify(f"Copied path for run {run_id} to clipboard.")
+        else:
+            self.app.notify(f"Run {run_id} not found.", severity="error")
+
     @on(RunsTableView.RowSelected)
     def on_row_selected(self, event: RunsTableView.RowSelected) -> None:
         """行選択イベントハンドラ"""
