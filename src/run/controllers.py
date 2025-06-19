@@ -130,3 +130,11 @@ class RunsController(Widget):
             self.app.notify(f"Copied URL for run {run_id} to clipboard.")
         else:
             self.app.notify(f"Run {run_id} not found.", severity="error")
+
+    @on(RunsTableView.RowSelected)
+    def on_row_selected(self, event: RunsTableView.RowSelected) -> None:
+        """行選択イベントハンドラ"""
+        run_id = event.row_key
+        run_data = self.model.find_run_by_id(run_id)
+        if run_data:
+            self.view.run_view.show(run_data.dict())

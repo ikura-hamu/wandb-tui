@@ -2,3 +2,20 @@ StatusBar {
   background: $boost;
   height: 1;
 }
+
+#left-panel {
+  width: 3fr;
+}
+
+#table-section {
+  width: 1fr;
+}
+
+#right-panel {
+  width: 1fr;
+}
+
+RunView {
+  dock: right;
+  width: 70%;
+}
