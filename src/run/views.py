@@ -13,17 +13,26 @@ from textual.widgets import (
     TextArea,
     Tree,
 )
+from textual.widgets.data_table import RowDoesNotExist
 
 
 class RunsTableView(DataTable):
     """WandB実行データを表示するテーブルビュー"""
 
     BINDINGS = [
-        ("c", "copy_url", "Copy run URL"),
+        ("C", "copy_url", "Copy run URL"),
+        ("c", "copy_path", "Copy run path"),
     ]
 
     class ReqCopyUrl(Message):
         """URLコピーのメッセージ"""
+
+        def __init__(self, run_id: str) -> None:
+            super().__init__()
+            self.run_id = run_id
+
+    class ReqCopyPath(Message):
+        """pathコピーのメッセージ"""
 
         def __init__(self, run_id: str) -> None:
             super().__init__()
@@ -44,6 +53,14 @@ class RunsTableView(DataTable):
     def action_copy_url(self):
         run_id = self.get_row_at(self.cursor_row)[0]
         self.post_message(self.ReqCopyUrl(run_id))
+
+    def action_copy_path(self):
+        try:
+            run_id = self.get_row_at(self.cursor_row)[0]
+        except RowDoesNotExist:
+            return
+        # Assuming the path is just the run ID for simplicity
+        self.post_message(self.ReqCopyPath(run_id))
 
 
 class LoadingView(LoadingIndicator):

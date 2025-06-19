@@ -22,12 +22,15 @@ class RunData:
     state: str
     created_at: datetime
     url: str
+    path: str
     config: dict[str, Any]
 
     @classmethod
     def from_wandb_run(cls, run: wandb.apis.public.runs.Run) -> RunData:
         raw_config: dict[str, Any] = json.loads(run.json_config)
         config = {k: v["value"] for k, v in raw_config.items()}
+
+        path = "/".join(run.path)
 
         """WandB RunオブジェクトからRunDataを作成"""
         return cls(
@@ -36,6 +39,7 @@ class RunData:
             state=run.state,
             created_at=run.created_at,
             url=run.url,
+            path=path,
             config=config,
         )
 
