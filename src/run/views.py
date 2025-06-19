@@ -59,7 +59,6 @@ class RunsTableView(DataTable):
             run_id = self.get_row_at(self.cursor_row)[0]
         except RowDoesNotExist:
             return
-        # Assuming the path is just the run ID for simplicity
         self.post_message(self.ReqCopyPath(run_id))
 
 
