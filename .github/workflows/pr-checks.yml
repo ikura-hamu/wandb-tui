@@ -50,7 +50,7 @@ jobs:
       uses: astral-sh/setup-uv@v4
       
     - name: Install dependencies
-      run: uv sync --no-build
+      run: uv sync
       
     - name: Run type check
       run: uv run ty check .
