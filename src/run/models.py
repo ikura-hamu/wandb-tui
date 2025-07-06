@@ -37,7 +37,7 @@ class RunData:
             config=config,
         )
 
-    def dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Returns a dictionary representation of the run data."""
         return self.__dict__
 

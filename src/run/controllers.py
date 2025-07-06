@@ -144,4 +144,4 @@ class RunsController(Widget):
         """Handles the selection of a row in the table."""
         run_data = self.model.find_run_by_id(event.row_key.value)
         if run_data:
-            self.view.run_view.show(run_data.dict())
+            self.view.run_view.show(run_data.to_dict())

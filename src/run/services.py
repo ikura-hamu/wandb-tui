@@ -50,4 +50,4 @@ class RunService:
 
     def run_matches_filter(self, run_data: RunData) -> bool:
         """Checks if a given run matches the current filter."""
-        return self._filter.matches(run_data.dict())
+        return self._filter.matches(run_data.to_dict())
