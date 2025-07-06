@@ -1,31 +1,32 @@
-"""Controllers for WandB TUI application."""
+"""Controllers for the WandB TUI application."""
 
 from __future__ import annotations
 
 from textual import on
 from textual.widget import Widget
 
-from run.views import FilterEditor, LoadingView, MainView, RunsTableView
-
 from .models import DataObserver, RunData, WandbRunsModel
+from .services import RunService
+from .views import FilterEditor, LoadingView, MainView, RunsTableView
 
 
 class DataObserverImpl(DataObserver):
-    """データオブザーバーの実装"""
+    """Concrete implementation of the DataObserver protocol."""
 
-    def __init__(self, controller: RunsController) -> None:
+    def __init__(self, controller: "RunsController") -> None:
         self.controller = controller
 
     def on_data_loading_started(self) -> None:
-        """データ読み込み開始時の処理"""
+        """Handles the start of the data loading process."""
         self.controller.app.call_from_thread(self.controller._show_loading_and_clear)
         self.controller.app.call_from_thread(
             self.controller.view.table_status_bar.update_status, "🌀 Loading runs..."
         )
 
     def on_data_loaded(self, run_data: RunData) -> None:
-        """新しいデータが読み込まれた時の処理"""
-        if self.controller.model.filter_run(run_data):
+        """Handles a new run being loaded."""
+        # The service decides if the run matches the filter
+        if self.controller.service.run_matches_filter(run_data):
             self.controller.app.call_from_thread(
                 self.controller._add_run_row,
                 run_data.id,
@@ -35,14 +36,14 @@ class DataObserverImpl(DataObserver):
             )
 
     def on_data_loading_completed(self, total_count: int) -> None:
-        """データ読み込み完了時の処理"""
+        """Handles the completion of the data loading process."""
         self.controller.app.call_from_thread(self.controller._hide_loading)
         self.controller.app.call_from_thread(
             self.controller.view.table_status_bar.update_status, "✅ Loading completed"
         )
 
     def on_data_loading_failed(self, error: Exception) -> None:
-        """データ読み込み失敗時の処理"""
+        """Handles a failure in the data loading process."""
         self.controller.app.call_from_thread(self.controller._hide_loading)
         self.controller.app.call_from_thread(
             self.controller.app.notify,
@@ -53,10 +54,12 @@ class DataObserverImpl(DataObserver):
     def on_filter_changed(
         self, filtered_runs: list[RunData], error: Exception | None
     ) -> None:
-        """フィルターが変更された時の処理"""
+        """Handles a change in the filter, updating the table."""
         if error:
             self.controller.view.editor_status_bar.update_status(str(error))
-            return
+        else:
+            self.controller.view.editor_status_bar.update_status()
+
         self.controller.runs_table.clear_table()
         for run in filtered_runs:
             self.controller._add_run_row(
@@ -65,87 +68,80 @@ class DataObserverImpl(DataObserver):
                 run.state,
                 str(run.created_at),
             )
-        self.controller.view.editor_status_bar.update_status()
 
 
 class RunsController(Widget):
-    """WandB実行データの表示を制御するコントローラー"""
+    """The controller for handling run data and view interactions."""
 
-    def __init__(self, model: WandbRunsModel, **kwargs) -> None:
+    def __init__(self, model: WandbRunsModel, service: RunService, **kwargs) -> None:
         super().__init__(**kwargs)
         self.model = model
+        self.service = service
         self.view: MainView | None = None
-        self.runs_table: RunsTableView | None = None  # MainViewから取得するテーブル
-        self.loading_view: LoadingView | None = (
-            None  # MainViewから取得するローディングビュー
-        )
-        # self.loading_view = view.get_loading_view()
+        self.runs_table: RunsTableView | None = None
+        self.loading_view: LoadingView | None = None
         self._observer = DataObserverImpl(self)
 
-        # モデルのオブザーバーとして登録
         self.model.add_observer(self._observer)
 
     def compose(self):
         yield MainView(id="main-view")
 
     def on_mount(self) -> None:
-        """マウント時の初期化処理"""
+        """Initial setup when the widget is mounted."""
         self.view = self.query_one("#main-view", MainView)
         self.runs_table = self.view.get_runs_table
         self.loading_view = self.view.get_loading_view
 
     def _show_loading_and_clear(self) -> None:
-        """ローディング表示とテーブルクリア（UIスレッド用）"""
+        """(UI thread) Shows loading indicator and clears the table."""
         self.loading_view.show_loading()
         self.runs_table.clear_table()
 
     def _add_run_row(self, run_id: str, name: str, state: str, created_at: str) -> None:
-        """テーブルに行を追加（UIスレッド用）"""
+        """(UI thread) Adds a row to the runs table."""
         self.runs_table.add_run_row(run_id, name, state, created_at)
 
     def _hide_loading(self) -> None:
-        """ローディング非表示（UIスレッド用）"""
+        """(UI thread) Hides the loading indicator."""
         self.loading_view.hide_loading()
 
     def load_runs(self, project_name: str) -> None:
-        """実行データの読み込みを開始"""
-        self.model.load_runs(project_name)
+        """Initiates the loading of runs via the service."""
+        self.service.load_runs(project_name, self.model)
 
     def cleanup(self) -> None:
-        """クリーンアップ処理"""
-        self.model.remove_observer(self)
+        """Cleans up resources, like removing the observer."""
+        self.model.remove_observer(self._observer)
 
     @on(FilterEditor.Changed)
     def on_filter_editor_changed(self, event: FilterEditor.Changed) -> None:
-        """フィルターエディタの変更イベントハンドラ"""
-        self.model.edit_filter(event.text_area.text)
+        """Handles changes in the filter editor."""
+        self.service.update_filter(event.text_area.text, self.model)
 
     @on(RunsTableView.ReqCopyUrl)
     def on_req_copy_url(self, event: RunsTableView.ReqCopyUrl) -> None:
-        """URLコピー要求イベントハンドラ"""
-        run_id = event.run_id
-        run_data = self.model.find_run_by_id(run_id)
+        """Handles the request to copy a run's URL."""
+        run_data = self.model.find_run_by_id(event.run_id)
         if run_data:
             self.app.copy_to_clipboard(run_data.url)
-            self.app.notify(f"Copied URL for run {run_id} to clipboard.")
+            self.app.notify(f"Copied URL for run {event.run_id} to clipboard.")
         else:
-            self.app.notify(f"Run {run_id} not found.", severity="error")
+            self.app.notify(f"Run {event.run_id} not found.", severity="error")
 
     @on(RunsTableView.ReqCopyPath)
     def on_req_copy_path(self, event: RunsTableView.ReqCopyPath) -> None:
-        """パスコピー要求イベントハンドラ"""
-        run_id = event.run_id
-        run_data = self.model.find_run_by_id(run_id)
+        """Handles the request to copy a run's path."""
+        run_data = self.model.find_run_by_id(event.run_id)
         if run_data:
             self.app.copy_to_clipboard(run_data.path)
-            self.app.notify(f"Copied path for run {run_id} to clipboard.")
+            self.app.notify(f"Copied path for run {event.run_id} to clipboard.")
         else:
-            self.app.notify(f"Run {run_id} not found.", severity="error")
+            self.app.notify(f"Run {event.run_id} not found.", severity="error")
 
     @on(RunsTableView.RowSelected)
     def on_row_selected(self, event: RunsTableView.RowSelected) -> None:
-        """行選択イベントハンドラ"""
-        run_id = event.row_key
-        run_data = self.model.find_run_by_id(run_id)
+        """Handles the selection of a row in the table."""
+        run_data = self.model.find_run_by_id(event.row_key.value)
         if run_data:
             self.view.run_view.show(run_data.dict())
