@@ -1,21 +1,16 @@
-"""Data models and business logic for WandB TUI."""
-
-from __future__ import annotations
+"""Data models for WandB TUI."""
 
 import json
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-import wandb.apis.public.runs
-
-from .filter import Filter, FilterError
+import wandb.apis.public
 
 
 @dataclass
 class RunData:
-    """WandB実行データを表すモデル"""
+    """A data class representing a single WandB run."""
 
     id: str
     name: str
@@ -26,12 +21,10 @@ class RunData:
     config: dict[str, Any]
 
     @classmethod
-    def from_wandb_run(cls, run: wandb.apis.public.runs.Run) -> RunData:
-        """WandB RunオブジェクトからRunDataを作成"""
-
+    def from_wandb_run(cls, run: wandb.apis.public.Run) -> "RunData":
+        """Creates a RunData object from a wandb.apis.public.Run object."""
         raw_config: dict[str, Any] = json.loads(run.json_config)
-        config = {k: v["value"] for k, v in raw_config.items()}
-
+        config = {k: v.get("value") for k, v in raw_config.items()}
         path = "/".join(run.path)
 
         return cls(
@@ -44,168 +37,102 @@ class RunData:
             config=config,
         )
 
-    def dict(self):
+    def to_dict(self) -> dict[str, Any]:
+        """Returns a dictionary representation of the run data."""
         return self.__dict__
 
 
 class DataObserver(Protocol):
-    """データ変更を観察するためのプロトコル"""
+    """
+    A protocol for observers that react to changes in the application's data.
+    """
 
     def on_data_loading_started(self) -> None:
-        """データ読み込み開始時に呼ばれる"""
+        """Called when the data loading process begins."""
         ...
 
     def on_data_loaded(self, run_data: RunData) -> None:
-        """新しいデータが読み込まれた時に呼ばれる"""
+        """Called when a new piece of data (a run) is loaded."""
         ...
 
     def on_data_loading_completed(self, total_count: int) -> None:
-        """データ読み込み完了時に呼ばれる"""
+        """Called when the entire data loading process is finished."""
         ...
 
     def on_data_loading_failed(self, error: Exception) -> None:
-        """データ読み込み失敗時に呼ばれる"""
+        """Called if an error occurs during data loading."""
         ...
 
     def on_filter_changed(
         self, filtered_runs: list[RunData], error: Exception | None
     ) -> None:
-        """フィルターが変更された時に呼ばれる"""
+        """Called when the filter is updated."""
         ...
-
-
-class WandbDataSource(ABC):
-    """WandBデータソースの抽象基底クラス"""
-
-    @abstractmethod
-    def fetch_runs(
-        self,
-        project_name: str,
-        per_page: int,
-        observer: DataObserver | None = None,
-    ) -> None:
-        """実行データを取得する"""
-        ...
-
-
-class WandbApiDataSource(WandbDataSource):
-    """WandB APIを使用したデータソース実装"""
-
-    def __init__(self) -> None:
-        self.api = wandb.Api()
-
-    def fetch_runs(
-        self,
-        project_name: str,
-        per_page: int,
-        observer: WandbRunsModel | None = None,
-    ) -> None:
-        """WandB APIから実行データを取得"""
-        if observer:
-            observer.notify_data_loading_started()
-
-        try:
-            runs_iterator = self.api.runs(
-                project_name, per_page=per_page, order="-created_at"
-            )
-
-            count = 0
-            for run in runs_iterator:
-                run_data = RunData.from_wandb_run(run)
-                if observer:
-                    observer.notify_data_loaded(run_data)
-                count += 1
-
-            if observer:
-                observer.notify_data_loading_completed(count)
-
-        except Exception as e:
-            if observer:
-                observer.notify_data_loading_failed(e)
-            raise
 
 
 class WandbRunsModel:
-    """WandB実行データを管理するモデル"""
+    """
+    The model responsible for holding the application's state (the list of runs)
+    and managing observers.
+    """
 
-    def __init__(self, data_source: WandbDataSource, filter_text: str) -> None:
-        self.data_source = data_source
-        self.runs: list[RunData] = []
+    def __init__(self) -> None:
+        self._runs: list[RunData] = []
         self._observers: list[DataObserver] = []
-        self._filter: Filter = Filter(filter_text)
 
     def add_observer(self, observer: DataObserver) -> None:
-        """オブザーバーを追加"""
-        self._observers.append(observer)
+        """Adds an observer to the list."""
+        if observer not in self._observers:
+            self._observers.append(observer)
 
     def remove_observer(self, observer: DataObserver) -> None:
-        """オブザーバーを削除"""
+        """Removes an observer from the list."""
         if observer in self._observers:
             self._observers.remove(observer)
 
-    def _notify_observers(self, method_name: str, *args, **kwargs) -> None:
-        """全オブザーバーに通知"""
-        for observer in self._observers:
-            method = getattr(observer, method_name)
-            method(*args, **kwargs)
+    def add_run(self, run: RunData) -> None:
+        """Adds a single run to the model's state."""
+        self._runs.append(run)
 
-    def edit_filter(self, filter_text: str) -> None:
-        """フィルターを編集"""
-        try:
-            self._filter.update_query(filter_text)
-        except FilterError as e:
-            self.notify_filter_changed(e)
-            return
+    def clear_runs(self) -> None:
+        """Clears all runs from the model's state."""
+        self._runs.clear()
 
-        self.notify_filter_changed(None)
-
-    def get_filtered_runs(self) -> list[RunData]:
-        """フィルターに基づいて実行データを取得"""
-        return [run for run in self.runs if self._filter.matches(run.dict())]
-
-    def filter_run(self, run_data: RunData) -> bool:
-        """実行データがフィルターに一致するかチェック"""
-        if self._filter is None:
-            return True
-        return self._filter.matches(run_data.dict())
+    def get_all_runs(self) -> list[RunData]:
+        """Returns all runs currently held by the model."""
+        return self._runs
 
     def find_run_by_id(self, run_id: str) -> RunData | None:
-        """IDで実行データを検索"""
-        for run in self.runs:
+        """Finds a run by its ID."""
+        for run in self._runs:
             if run.id == run_id:
                 return run
         return None
 
+    # Methods to notify observers
     def notify_data_loading_started(self) -> None:
-        """データ読み込み開始時の処理"""
+        """Notifies all observers that data loading has started."""
         for obs in self._observers:
             obs.on_data_loading_started()
 
     def notify_data_loaded(self, run_data: RunData) -> None:
-        """新しいデータが読み込まれた時の処理"""
-        self.runs.append(run_data)
+        """Notifies all observers that a new run has been loaded."""
         for obs in self._observers:
             obs.on_data_loaded(run_data)
 
     def notify_data_loading_completed(self, total_count: int) -> None:
-        """データ読み込み完了時の処理"""
+        """Notifies all observers that data loading is complete."""
         for obs in self._observers:
             obs.on_data_loading_completed(total_count)
 
     def notify_data_loading_failed(self, error: Exception) -> None:
-        """データ読み込み失敗時の処理"""
+        """Notifies all observers that data loading has failed."""
         for obs in self._observers:
             obs.on_data_loading_failed(error)
 
-    def notify_filter_changed(self, error: Exception | None) -> None:
-        """フィルターが変更された時の処理"""
+    def notify_filter_changed(
+        self, filtered_runs: list[RunData], error: Exception | None
+    ) -> None:
+        """Notifies all observers that the filter has changed."""
         for obs in self._observers:
-            obs.on_filter_changed(self.get_filtered_runs(), error=error)
-
-    def load_runs(self, project_name: str, per_page: int = 50) -> None:
-        """実行データを読み込む"""
-        self.data_source.fetch_runs(project_name, per_page, self)
-
-    def clear_runs(self) -> None:
-        """実行データをクリア"""
-        self.runs.clear()
+            obs.on_filter_changed(filtered_runs, error)
