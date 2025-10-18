@@ -5,7 +5,6 @@ updates:
     rebase-strategy: auto
     package-ecosystem: "uv"
     schedule:
-      interval: "weekly"
-      day: saturday
+      interval: "monthly"
       timezone: "Asia/Tokyo"
       time: "00:00"
